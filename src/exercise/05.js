@@ -11,6 +11,7 @@ import {
 } from '../utils'
 
 const AppStateContext = React.createContext()
+const DispatchContext = React.createContext()
 
 const initialGrid = Array.from({length: 100}, () =>
   Array.from({length: 100}, () => Math.random() * 100),
@@ -39,7 +40,7 @@ function AppProvider({children}) {
     grid: initialGrid,
   })
   // 🐨 memoize this value with React.useMemo
-  const value = [state, dispatch]
+  const value = React.useMemo(() => [state, dispatch], [state])
   return (
     <AppStateContext.Provider value={value}>
       {children}
@@ -47,8 +48,30 @@ function AppProvider({children}) {
   )
 }
 
+function DispatchProvider({children}) {
+  const [, dispatch] = React.useReducer(appReducer, {
+    dogName: '',
+    grid: initialGrid,
+  })
+  // 🐨 memoize this value with React.useMemo
+  const value = React.useMemo(() => dispatch, [dispatch])
+  return (
+    <DispatchContext.Provider value={value}>
+      {children}
+    </DispatchContext.Provider>
+  )
+}
+
+function useDispatchContext() {
+  const dispatchContext = React.useContext(DispatchContext);
+  if (!dispatchContext) {
+    throw new Error('useDispatchContext must be used within the AppProvider')
+  }
+  return dispatchContext
+}
+
 function useAppState() {
-  const context = React.useContext(AppStateContext)
+  const context = React.useContext(AppStateContext);
   if (!context) {
     throw new Error('useAppState must be used within the AppProvider')
   }
@@ -56,7 +79,7 @@ function useAppState() {
 }
 
 function Grid() {
-  const [, dispatch] = useAppState()
+  const dispatch = useDispatchContext()
   const [rows, setRows] = useDebouncedState(50)
   const [columns, setColumns] = useDebouncedState(50)
   const updateGridData = () => dispatch({type: 'UPDATE_GRID'})
@@ -127,7 +150,9 @@ function App() {
       <AppProvider>
         <div>
           <DogNameInput />
-          <Grid />
+          <DispatchProvider>
+            <Grid />
+          </DispatchProvider>
         </div>
       </AppProvider>
     </div>
